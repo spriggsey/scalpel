@@ -231,6 +231,30 @@ Show # D-Tier Currency (currency)
     })
   })
 
+  it('does not tag poe1filter.com map threshold and special-case rows as tier move targets', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # Maps (maps-dynamic)
+    Class == "Maps"
+    MapTier >= 11
+
+Show # Nightmare 8-Mod (maps-tier-17-corrupted)
+    Class == "Maps"
+    MapTier == 17
+
+Show # T16 Memory-Influenced Normal (maps-tier-16-memory-strands)
+    Class == "Maps"
+    MapTier == 16
+
+Show # Low-Tier Blighted (maps-low-tier-blighted)
+    Class == "Maps"
+    MapTier >= 1`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks.map((b) => b.tierTag)).toEqual([undefined, undefined, undefined, undefined])
+  })
+
   it('can force poe1filter.com parsing without a generator header', () => {
     const content = `Show # My Excellent Item Level Amulets (jewellery-my-excellent-ilevel/jewellery/2)
     Class == "Amulets"`

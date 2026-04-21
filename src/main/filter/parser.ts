@@ -50,6 +50,10 @@ function parsePoeCurrencyTierRule(label: string, ruleId: string): TierTag | unde
   }
 }
 
+function isPoeFilterThresholdRule(ruleId: string): boolean {
+  return /^currency-(?:large|small)-stacks$/.test(ruleId) || ruleId === 'maps-dynamic' || ruleId.startsWith('maps-')
+}
+
 function parsePoeFilterRule(comment: string, duplicateRuleIds: Set<string>): TierTag | undefined {
   const match = comment.match(/^(.+?)\s*\(([^()]+)\)\s*$/)
   if (!match) return undefined
@@ -61,7 +65,7 @@ function parsePoeFilterRule(comment: string, duplicateRuleIds: Set<string>): Tie
   const currencyTier = parsePoeCurrencyTierRule(label, ruleId)
   if (currencyTier) return currencyTier
 
-  if (/^currency-(?:large|small)-stacks$/.test(ruleId)) return undefined
+  if (isPoeFilterThresholdRule(ruleId)) return undefined
 
   if (duplicateRuleIds.has(ruleId)) return undefined
 
