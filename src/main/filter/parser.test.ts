@@ -157,6 +157,80 @@ Hide # Small Gold Stack (gold-leveling)
     expect(result.blocks[1].tierTag).toBeUndefined()
   })
 
+  it('keeps poe1filter.com currency tier board rows despite duplicate rule ids', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # S-Tier Currency (currency)
+    Class == "Stackable Currency"
+    BaseType == "Mirror of Kalandra"
+
+Show # A-Tier Currency (currency)
+    Class == "Stackable Currency"
+    BaseType == "Fracturing Orb"
+
+Show # S-Tier Divination Cards (currency)
+    Class == "Divination Card"
+    BaseType == "The Apothecary"`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks[0].tierTag).toMatchObject({
+      typePath: 'currency',
+      tier: 'S',
+      source: 'poe1filter',
+      label: 'S-Tier Currency',
+      ruleId: 'currency',
+    })
+    expect(result.blocks[1].tierTag).toMatchObject({
+      typePath: 'currency',
+      tier: 'A',
+    })
+    expect(result.blocks[2].tierTag).toMatchObject({
+      typePath: 'divination',
+      tier: 'S',
+    })
+  })
+
+  it('does not tag poe1filter.com stack-size currency override rows as tier move targets', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # Large Stacks of A-Tier Currency (currency-large-stacks)
+    Class == "Stackable Currency"
+    BaseType == "Fracturing Orb"
+    StackSize >= 10
+
+Show # A-Tier Currency (currency)
+    Class == "Stackable Currency"
+    BaseType == "Fracturing Orb"`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks[0].tierTag).toBeUndefined()
+    expect(result.blocks[1].tierTag).toMatchObject({
+      typePath: 'currency',
+      tier: 'A',
+    })
+  })
+
+  it('drops poe1filter.com empty currency tier stubs from tier move targets', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # D-Tier Currency (currency)
+    Class == "Stackable Currency"
+
+Show # D-Tier Currency (currency)
+    Class == "Stackable Currency"
+    BaseType == "Chaos Orb"`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks[0].tierTag).toBeUndefined()
+    expect(result.blocks[1].tierTag).toMatchObject({
+      typePath: 'currency',
+      tier: 'D',
+    })
+  })
+
   it('can force poe1filter.com parsing without a generator header', () => {
     const content = `Show # My Excellent Item Level Amulets (jewellery-my-excellent-ilevel/jewellery/2)
     Class == "Amulets"`

@@ -19,13 +19,51 @@ function parseFilterBladeTierTag(comment: string): TierTag | undefined {
   return { typePath: typeMatch[1], tier: tierMatch[1], source: 'filterblade' }
 }
 
+function normalizePoeFilterTypePath(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function mapPoeCurrencyTierTypePath(category: string): string {
+  const normalized = normalizePoeFilterTypePath(category)
+  if (normalized === 'currency') return 'currency'
+  if (normalized === 'divination-cards') return 'divination'
+  return `currency->${normalized}`
+}
+
+function parsePoeCurrencyTierRule(label: string, ruleId: string): TierTag | undefined {
+  if (ruleId !== 'currency') return undefined
+
+  const tierMatch = label.match(/^([SABCDEF])-Tier\s+(.+)$/)
+  if (!tierMatch) return undefined
+
+  return {
+    typePath: mapPoeCurrencyTierTypePath(tierMatch[2]),
+    tier: tierMatch[1],
+    source: 'poe1filter',
+    label,
+    ruleId,
+  }
+}
+
 function parsePoeFilterRule(comment: string, duplicateRuleIds: Set<string>): TierTag | undefined {
   const match = comment.match(/^(.+?)\s*\(([^()]+)\)\s*$/)
   if (!match) return undefined
 
   const label = match[1].trim()
   const ruleId = match[2].trim()
-  if (!ruleId || duplicateRuleIds.has(ruleId)) return undefined
+  if (!ruleId) return undefined
+
+  const currencyTier = parsePoeCurrencyTierRule(label, ruleId)
+  if (currencyTier) return currencyTier
+
+  if (/^currency-(?:large|small)-stacks$/.test(ruleId)) return undefined
+
+  if (duplicateRuleIds.has(ruleId)) return undefined
 
   const slashParts = ruleId.split('/').filter(Boolean)
   if (slashParts.length > 1) {
@@ -198,6 +236,13 @@ export function parseFilterFile(path: string, content: string, source: FilterSou
   const finalizeBlock = (lineEnd: number) => {
     if (currentBlock) {
       currentBlock.lineEnd = lineEnd
+      if (
+        currentBlock.tierTag?.source === 'poe1filter' &&
+        currentBlock.tierTag.ruleId === 'currency' &&
+        !currentBlock.conditions.some((c) => c.type === 'BaseType')
+      ) {
+        currentBlock.tierTag = undefined
+      }
       blocks.push({ ...currentBlock, id: randomUUID() } as FilterBlock)
       currentBlock = null
     }
