@@ -42,7 +42,7 @@ import { onRateLimitUpdate } from './trade/trade'
 import { startOnlineSync, stopOnlineSync } from './online-sync'
 import { initUpdater } from './update/updater'
 import { applyPendingUpdate } from './update/update-swap'
-import { loadFilter } from './filter-state'
+import { loadFilter, setFilterSource } from './filter-state'
 import { createHotkeyHandler, createPriceCheckHandler, setOpenSide } from './evaluation'
 import { snapshotClipboard } from './clipboard-preserve'
 import * as tradeHandlers from './handlers/trade'
@@ -79,6 +79,7 @@ const store = new Store<AppSettings>({
     closeOnClickOutside: false,
     league: 'Mirage',
     reloadOnSave: true,
+    filterSource: 'auto',
     updateChannel: 'stable',
     tradeStatus: 'any',
     tradePriceOption: 'chaos_divine',
@@ -94,6 +95,7 @@ const store = new Store<AppSettings>({
 
 // Backfill defaults for keys added after initial release
 if (store.get('reloadOnSave') === undefined) store.set('reloadOnSave', true)
+if (store.get('filterSource') === undefined) store.set('filterSource', 'auto')
 if (store.get('stashScrollEnabled') === undefined) store.set('stashScrollEnabled', false)
 if (store.get('openSide') === undefined) store.set('openSide', 'both')
 // Migrate legacy tradeStatus 'available' -> 'any' (renamed to match chip-row options)
@@ -195,6 +197,7 @@ app.whenReady().then(() => {
   })
 
   const filterPath = store.get('filterPath')
+  setFilterSource(store.get('filterSource') ?? 'auto')
   if (filterPath) loadFilter(filterPath, 'App Launch')
 
   // Start low-level keyboard hook

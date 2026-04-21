@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppSettings } from '../../../../shared/types'
 import { Toggle } from '../Toggle'
 import { FilterPicker } from '../FilterPicker'
+import { SettingSelectBox } from './SettingSelectBox'
 import { keyEventToAccelerator, prettyHotkey } from './utils'
 
 interface Props {
@@ -73,6 +74,17 @@ export function FilterTab({
           </p>
         )}
       </section>
+
+      <SettingSelectBox<AppSettings['filterSource']>
+        label="Filter format"
+        value={settings.filterSource ?? 'auto'}
+        options={[
+          { value: 'auto', label: 'Auto detect' },
+          { value: 'filterblade', label: 'FilterBlade' },
+          { value: 'poe1filter', label: 'poe1filter.com' },
+        ]}
+        onChange={(value) => update('filterSource', value)}
+      />
 
       {/* Filter hotkey */}
       <section>

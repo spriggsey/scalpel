@@ -3,11 +3,12 @@ import { parseFilterFile } from './filter/parser'
 import { loadIntents } from './filter/intent-recorder'
 import { registerFilterBaseTypes } from './trade/clipboard'
 import { saveVersion } from './update/versions'
-import type { FilterFile } from '../shared/types'
+import type { FilterFile, FilterSource } from '../shared/types'
 
 // ---- In-memory filter state ------------------------------------------------
 
 let currentFilter: FilterFile | null = null
+let filterSource: FilterSource = 'auto'
 
 export function getCurrentFilter(): FilterFile | null {
   return currentFilter
@@ -16,6 +17,10 @@ export function getCurrentFilter(): FilterFile | null {
 export function setCurrentFilter(filter: FilterFile | null): void {
   currentFilter = filter
   for (const cb of filterLoadedCallbacks) cb()
+}
+
+export function setFilterSource(source: FilterSource): void {
+  filterSource = source
 }
 
 // Subscribers notified after currentFilter changes (either via loadFilter or
@@ -153,7 +158,7 @@ export function getColorFrequencies(): ColorFreqMap {
 export function loadFilter(path: string, autoVersionLabel?: string): FilterFile | null {
   try {
     const content = readFileSync(path, 'utf-8')
-    currentFilter = parseFilterFile(path, content)
+    currentFilter = parseFilterFile(path, content, filterSource)
     for (const cb of filterLoadedCallbacks) cb()
     // Load intent log for this filter
     const filterName =

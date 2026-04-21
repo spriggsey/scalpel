@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import Store from 'electron-store'
-import { loadFilter, getColorFrequencies } from '../filter-state'
+import { loadFilter, getColorFrequencies, setFilterSource } from '../filter-state'
 import { getOverlayWindow, setCloseOnClickOutside } from '../overlay'
 import { getAppWindow } from '../app-window'
 import { setHotkey, setPriceCheckHotkey, setChatCommands, setAppMacros, setStashScrollEnabled } from '../hotkeys'
@@ -21,6 +21,11 @@ export function register(store: Store<AppSettings>): void {
     const prev = store.get(key)
     store.set(key, value)
     if (key === 'filterPath' && value !== prev) loadFilter(value as string, 'Switched Filters')
+    if (key === 'filterSource') {
+      setFilterSource(value as AppSettings['filterSource'])
+      const filterPath = store.get('filterPath')
+      if (filterPath) loadFilter(filterPath, 'Filter Source Changed')
+    }
     if (key === 'hotkey') setHotkey(value as string)
     if (key === 'priceCheckHotkey') setPriceCheckHotkey(value as string)
     if (key === 'closeOnClickOutside') setCloseOnClickOutside(value as boolean)

@@ -7,15 +7,67 @@ import type {
   ConditionType,
   ActionType,
   ComparisonOperator,
+  FilterSource,
   TierTag,
   Visibility,
 } from '../../shared/types'
 
-function parseTierTag(comment: string): TierTag | undefined {
+function parseFilterBladeTierTag(comment: string): TierTag | undefined {
   const typeMatch = comment.match(/\$type->(\S+)/)
   const tierMatch = comment.match(/\$tier->(\S+)/)
   if (!typeMatch || !tierMatch) return undefined
-  return { typePath: typeMatch[1], tier: tierMatch[1] }
+  return { typePath: typeMatch[1], tier: tierMatch[1], source: 'filterblade' }
+}
+
+function parsePoeFilterRule(comment: string, duplicateRuleIds: Set<string>): TierTag | undefined {
+  const match = comment.match(/^(.+?)\s*\(([^()]+)\)\s*$/)
+  if (!match) return undefined
+
+  const label = match[1].trim()
+  const ruleId = match[2].trim()
+  if (!ruleId || duplicateRuleIds.has(ruleId)) return undefined
+
+  const slashParts = ruleId.split('/').filter(Boolean)
+  if (slashParts.length > 1) {
+    const typePath = slashParts.slice(1).join('/')
+    const tierPrefix = `${slashParts[1]}-`
+    const tier = slashParts[0].startsWith(tierPrefix) ? slashParts[0].slice(tierPrefix.length) : slashParts[0]
+    return {
+      typePath,
+      tier,
+      source: 'poe1filter',
+      label,
+      ruleId,
+    }
+  }
+
+  const dashIdx = ruleId.indexOf('-')
+  if (dashIdx <= 0 || dashIdx === ruleId.length - 1) return undefined
+
+  return {
+    typePath: ruleId.slice(0, dashIdx),
+    tier: ruleId.slice(dashIdx + 1),
+    source: 'poe1filter',
+    label,
+    ruleId,
+  }
+}
+
+function parseTierTag(
+  comment: string,
+  source: FilterSource,
+  duplicatePoeRuleIds: Set<string>,
+): TierTag | undefined {
+  if (source !== 'poe1filter') {
+    const filterBladeTag = parseFilterBladeTierTag(comment)
+    if (filterBladeTag || source === 'filterblade') return filterBladeTag
+  }
+
+  if (source !== 'filterblade') {
+    return parsePoeFilterRule(comment, duplicatePoeRuleIds)
+  }
+
+  return undefined
 }
 
 const ACTION_TYPES = new Set<ActionType>([
@@ -81,6 +133,31 @@ function stripComment(line: string): string {
   return line
 }
 
+function detectFilterSource(content: string): Exclude<FilterSource, 'auto'> | 'unknown' {
+  if (/\$type->\S+/.test(content) && /\$tier->\S+/.test(content)) return 'filterblade'
+  if (/Generated with poe1filter\.com/i.test(content)) return 'poe1filter'
+  return 'unknown'
+}
+
+function collectDuplicatePoeRuleIds(lines: string[]): Set<string> {
+  const counts = new Map<string, number>()
+  for (const raw of lines) {
+    const stripped = stripComment(raw).trim()
+    const keyword = stripped.split(/\s+/)[0]
+    if (keyword !== 'Show' && keyword !== 'Hide' && keyword !== 'Minimal') continue
+
+    const hashIdx = raw.indexOf('#')
+    if (hashIdx === -1) continue
+    const inlineComment = raw.slice(hashIdx + 1).trim()
+    const match = inlineComment.match(/^.+?\s*\(([^()]+)\)\s*$/)
+    if (!match) continue
+    const ruleId = match[1].trim()
+    counts.set(ruleId, (counts.get(ruleId) ?? 0) + 1)
+  }
+
+  return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([ruleId]) => ruleId))
+}
+
 function parseCondition(keyword: string, rest: string): FilterCondition {
   const type = keyword as ConditionType
 
@@ -109,8 +186,10 @@ function parseAction(keyword: string, rest: string): FilterAction {
   return { type, values }
 }
 
-export function parseFilterFile(path: string, content: string): FilterFile {
+export function parseFilterFile(path: string, content: string, source: FilterSource = 'auto'): FilterFile {
   const rawLines = content.split('\n')
+  const resolvedSource = source === 'auto' ? detectFilterSource(content) : source
+  const duplicatePoeRuleIds = resolvedSource === 'poe1filter' ? collectDuplicatePoeRuleIds(rawLines) : new Set<string>()
   const blocks: FilterBlock[] = []
 
   let currentBlock: Omit<FilterBlock, 'id'> | null = null
@@ -148,7 +227,10 @@ export function parseFilterFile(path: string, content: string): FilterFile {
       // Capture inline comment from the Show/Hide line (e.g. "# %D9 $type->currency $tier->t1")
       const hashIdx = raw.indexOf('#')
       const inlineComment = hashIdx !== -1 ? raw.slice(hashIdx + 1).trim() : undefined
-      const tierTag = inlineComment ? parseTierTag(inlineComment) : undefined
+      const tierTag =
+        inlineComment && resolvedSource !== 'unknown'
+          ? parseTierTag(inlineComment, resolvedSource, duplicatePoeRuleIds)
+          : undefined
       currentBlock = {
         visibility: keyword as Visibility,
         conditions: [],

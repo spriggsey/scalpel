@@ -111,7 +111,63 @@ Hide
     const result = parseFilterFile('test.filter', content)
     const block = result.blocks[0]
     expect(block.inlineComment).toBe('%D9 $type->currency $tier->t1')
-    expect(block.tierTag).toEqual({ typePath: 'currency', tier: 't1' })
+    expect(block.tierTag).toEqual({ typePath: 'currency', tier: 't1', source: 'filterblade' })
+  })
+
+  it('handles poe1filter.com rule ids from inline comments', () => {
+    const content = `#######################################################
+### Generated with poe1filter.com
+#######################################################
+
+Show # Excellent Uniques (uniques-excellent)
+    Rarity == Unique
+    BaseType == "Vermillion Ring"
+
+Show # Good Uniques (uniques-good)
+    Rarity == Unique
+    BaseType == "Diamond Ring"`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks[0].tierTag).toEqual({
+      typePath: 'uniques',
+      tier: 'excellent',
+      source: 'poe1filter',
+      label: 'Excellent Uniques',
+      ruleId: 'uniques-excellent',
+    })
+    expect(result.blocks[1].tierTag).toMatchObject({
+      typePath: 'uniques',
+      tier: 'good',
+    })
+  })
+
+  it('skips duplicate poe1filter.com rule ids to avoid ambiguous tier edits', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # Large Gold Stack (gold-leveling)
+    BaseType == "Gold"
+
+Hide # Small Gold Stack (gold-leveling)
+    BaseType == "Gold"`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks[0].tierTag).toBeUndefined()
+    expect(result.blocks[1].tierTag).toBeUndefined()
+  })
+
+  it('can force poe1filter.com parsing without a generator header', () => {
+    const content = `Show # My Excellent Item Level Amulets (jewellery-my-excellent-ilevel/jewellery/2)
+    Class == "Amulets"`
+
+    const result = parseFilterFile('test.filter', content, 'poe1filter')
+
+    expect(result.blocks[0].tierTag).toMatchObject({
+      typePath: 'jewellery/2',
+      tier: 'my-excellent-ilevel',
+      source: 'poe1filter',
+    })
   })
 
   it('handles quoted and unquoted values', () => {

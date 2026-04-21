@@ -2,6 +2,7 @@
 
 export type Visibility = 'Show' | 'Hide' | 'Minimal'
 export type ComparisonOperator = '>' | '>=' | '=' | '==' | '<=' | '<'
+export type FilterSource = 'auto' | 'filterblade' | 'poe1filter'
 
 // Any string is valid as new things can pop up from league to league
 // Known types are handled explicitly by the matcher; unknown ones evaluate as 'unknown'.
@@ -49,6 +50,12 @@ export interface TierTag {
   typePath: string
   /** e.g. "t1", "t2", "exhide" */
   tier: string
+  /** Which filter generator produced this tag, when known */
+  source?: Exclude<FilterSource, 'auto'>
+  /** Human label from the block comment, when available */
+  label?: string
+  /** Stable generator rule id, when available */
+  ruleId?: string
 }
 
 export interface FilterBlock {
@@ -279,6 +286,7 @@ export interface AppSettings {
   closeOnClickOutside: boolean
   league: string
   reloadOnSave: boolean
+  filterSource: FilterSource
   updateChannel: 'stable' | 'beta'
   tradeStatus: 'securable' | 'online' | 'any'
   // NOTE: 'available' was a legacy value from earlier releases; it's migrated to 'any' on
