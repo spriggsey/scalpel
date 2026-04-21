@@ -142,6 +142,52 @@ Show # Good Uniques (uniques-good)
     })
   })
 
+  it('handles poe1filter.com unique tier board rows', () => {
+    const content = `### Generated with poe1filter.com
+
+Show # Excellent Uniques (uniques-excellent)
+    Rarity == Unique
+    BaseType == "Vermillion Ring"
+
+Show # Class-specific Uniques (uniques-class-specific)
+    Rarity == Unique
+    BaseType == "Iron Ring"
+
+Show # Potential Uniques (uniques-potential)
+    Rarity == Unique
+    BaseType == "Imperial Staff"
+
+Show # Restricted Uniques (uniques-restricted)
+    Rarity == Unique
+    BaseType == "Lion Sword"
+
+Show # Other Uniques (uniques-other)
+    Rarity == Unique
+    BaseType == "Gold Ring"
+
+Show # Unknown Uniques (uniques-unknown)
+    Rarity == Unique`
+
+    const result = parseFilterFile('test.filter', content)
+
+    expect(result.blocks.map((b) => b.tierTag?.typePath)).toEqual([
+      'uniques',
+      'uniques',
+      'uniques',
+      'uniques',
+      'uniques',
+      'uniques',
+    ])
+    expect(result.blocks.map((b) => b.tierTag?.tier)).toEqual([
+      'excellent',
+      'class-specific',
+      'potential',
+      'restricted',
+      'other',
+      'unknown',
+    ])
+  })
+
   it('skips duplicate poe1filter.com rule ids to avoid ambiguous tier edits', () => {
     const content = `### Generated with poe1filter.com
 
